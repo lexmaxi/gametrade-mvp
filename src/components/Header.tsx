@@ -1,19 +1,65 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function Header() {
   const [search, setSearch] = useState("");
+  const [username, setUsername] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setUsername(null);
+        setEmail(null);
+        return;
+      }
+
+      setEmail(user.email ?? null);
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      setUsername(data?.username ?? null);
+    }
+
+    loadUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      loadUser();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-[#0b0614]/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
+
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-white font-bold text-lg">
             GT
           </div>
+
           <span className="hidden sm:block text-xl font-bold gradient-text">
             GameTrade
           </span>
@@ -29,6 +75,7 @@ export default function Header() {
               placeholder="Поиск аккаунтов, буста, услуг..."
               className="w-full rounded-xl border border-border bg-card px-4 py-2.5 pl-10 text-sm text-foreground placeholder:text-text-secondary/60 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
             />
+
             <svg
               className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-secondary"
               fill="none"
@@ -47,6 +94,8 @@ export default function Header() {
 
         {/* Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
+
+          {/* Sell */}
           <Link
             href="/sell"
             className="hidden sm:flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-primary to-primary-hover px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition glow-primary"
@@ -54,38 +103,110 @@ export default function Header() {
             Продать
           </Link>
 
+          {/* Favorites */}
           <Link
             href="/favorites"
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-text-secondary hover:text-foreground hover:border-primary/50 transition"
             title="Избранное"
           >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              />
             </svg>
           </Link>
 
+          {/* Chat */}
           <Link
             href="/chat"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-text-secondary hover:text-foreground hover:border-primary/50 transition relative"
+            className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-text-secondary hover:text-foreground hover:border-primary/50 transition"
             title="Сообщения"
           >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+              />
             </svg>
+
             <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">
               2
             </span>
           </Link>
 
-          <Link
-            href="/login"
-            className="flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground hover:border-primary/50 transition"
-          >
-            <svg className="h-5 w-5 text-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <span className="hidden sm:inline">Войти</span>
-          </Link>
+          {/* User */}
+          {username || email ? (
+            <div className="flex items-center gap-2">
+              <Link
+                href="/profile"
+                className="flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground hover:border-primary/50 transition"
+              >
+                <svg
+                  className="h-5 w-5 text-text-secondary"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  />
+                </svg>
+
+                <span className="hidden max-w-[160px] truncate sm:inline">
+                  {username || email}
+                </span>
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="hidden sm:flex h-10 items-center rounded-xl border border-border bg-card px-3 text-sm text-text-secondary hover:border-primary/50 hover:text-foreground transition"
+              >
+                Выйти
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/auth"
+              className="flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground hover:border-primary/50 transition"
+            >
+              <svg
+                className="h-5 w-5 text-text-secondary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7-7h14a7 7 0 00-7 7z"
+                />
+              </svg>
+
+              <span className="hidden sm:inline">
+                Войти
+              </span>
+            </Link>
+          )}
         </div>
       </div>
     </header>
