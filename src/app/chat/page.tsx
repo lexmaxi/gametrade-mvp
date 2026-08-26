@@ -46,54 +46,64 @@ type Position = {
 };
 
 const EMOJI_LIST = [
-  "😀", "😁", "😂", "🤣", "😃", "😄",
-  "😅", "😆", "😉", "😊", "😋", "😍",
-  "🥰", "😘", "😎", "🤔", "😢", "😭",
-  "😡", "🤬", "👍", "👎", "❤️", "🔥",
-  "🎮", "🏆", "💰", "💎", "🚀", "🎉",
+  "😀",
+  "😁",
+  "😂",
+  "🤣",
+  "😃",
+  "😄",
+  "😅",
+  "😆",
+  "😉",
+  "😊",
+  "😋",
+  "😍",
+  "🥰",
+  "😘",
+  "😎",
+  "🤔",
+  "😢",
+  "😭",
+  "😡",
+  "🤬",
+  "👍",
+  "👎",
+  "❤️",
+  "🔥",
+  "🎮",
+  "🏆",
+  "💰",
+  "💎",
+  "🚀",
+  "🎉",
 ];
 
 export default function ChatPage() {
   const searchParams = useSearchParams();
+
   const receiverFromUrl = searchParams.get("user");
 
   const [userId, setUserId] = useState<string | null>(null);
-  const [receiverId, setReceiverId] = useState(
-    receiverFromUrl || ""
-  );
+  const [receiverId, setReceiverId] = useState(receiverFromUrl || "");
   const [receiver, setReceiver] = useState<Profile | null>(null);
-
   const [messages, setMessages] = useState<Message[]>([]);
-  const [profiles, setProfiles] = useState<
-    Record<string, Profile>
-  >({});
-
+  const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [chatList, setChatList] = useState<ChatItem[]>([]);
   const [loadingChats, setLoadingChats] = useState(true);
-
   const [text, setText] = useState("");
-  const [showEmojiPicker, setShowEmojiPicker] =
-    useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
-
-  const [editingId, setEditingId] = useState<string | null>(
-    null
-  );
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
-
-  const [mediaViewer, setMediaViewer] =
-    useState<MediaViewer | null>(null);
-
+  const [mediaViewer, setMediaViewer] = useState<MediaViewer | null>(null);
   const [zoom, setZoom] = useState(1);
   const [position, setPosition] = useState<Position>({
     x: 0,
     y: 0,
   });
-
-  const [showViewerControls, setShowViewerControls] =
-    useState(true);
+  const [showViewerControls, setShowViewerControls] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -141,12 +151,6 @@ export default function ChatPage() {
     }
   }, [receiverFromUrl]);
 
-  /*
-   * Загружает список всех пользователей,
-   * с которыми текущий пользователь когда-либо переписывался.
-   *
-   * Источник данных — ТОЛЬКО messages.
-   */
   async function loadChatList() {
     if (!userId) return;
 
@@ -155,29 +159,20 @@ export default function ChatPage() {
     const { data, error } = await supabase
       .from("messages")
       .select("*")
-      .or(
-        `sender_id.eq.${userId},receiver_id.eq.${userId}`
-      )
+      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
       .neq("message_type", "system")
       .order("created_at", {
         ascending: false,
       });
 
     if (error) {
-      console.error(
-        "Ошибка загрузки списка чатов:",
-        error
-      );
+      console.error("Ошибка загрузки списка чатов:", error);
       setLoadingChats(false);
       return;
     }
 
     const allMessages = (data || []) as Message[];
 
-    /*
-     * Для каждого собеседника оставляем
-     * самое последнее сообщение.
-     */
     const chatMap = new Map<string, Message>();
 
     for (const message of allMessages) {
@@ -199,17 +194,12 @@ export default function ChatPage() {
       return;
     }
 
-    /*
-     * Загружаем профили всех собеседников.
-     */
     const {
       data: profileData,
       error: profileError,
     } = await supabase
       .from("profiles")
-      .select(
-        "id, username, profile_id, avatar_url"
-      )
+      .select("id, username, profile_id, avatar_url")
       .in("id", userIds);
 
     if (profileError) {
@@ -219,23 +209,13 @@ export default function ChatPage() {
       );
     }
 
-    const profileMap = new Map<
-      string,
-      Profile
-    >();
+    const profileMap = new Map<string, Profile>();
 
     (profileData || []).forEach((profile) => {
       profileMap.set(profile.id, profile);
     });
 
-    /*
-     * Считаем непрочитанные сообщения
-     * отдельно для каждого собеседника.
-     */
-    const unreadCounts = new Map<
-      string,
-      number
-    >();
+    const unreadCounts = new Map<string, number>();
 
     allMessages.forEach((message) => {
       if (
@@ -255,10 +235,8 @@ export default function ChatPage() {
     const chats: ChatItem[] = userIds.map(
       (otherUserId) => ({
         userId: otherUserId,
-        profile:
-          profileMap.get(otherUserId) || null,
-        lastMessage:
-          chatMap.get(otherUserId)!,
+        profile: profileMap.get(otherUserId) || null,
+        lastMessage: chatMap.get(otherUserId)!,
         unreadCount:
           unreadCounts.get(otherUserId) || 0,
       })
@@ -268,10 +246,6 @@ export default function ChatPage() {
     setLoadingChats(false);
   }
 
-  /*
-   * Загружаем список чатов сразу после
-   * получения ID текущего пользователя.
-   */
   useEffect(() => {
     if (!userId) return;
 
@@ -285,9 +259,7 @@ export default function ChatPage() {
     loadReceiver();
 
     const channel = supabase
-      .channel(
-        `chat-${userId}-${receiverId}`
-      )
+      .channel(`chat-${userId}-${receiverId}`)
       .on(
         "postgres_changes",
         {
@@ -296,22 +268,14 @@ export default function ChatPage() {
           table: "messages",
         },
         async (payload) => {
-          const newMessage =
-            payload.new as Message;
+          const newMessage = payload.new as Message;
 
           const belongsToChat =
             (newMessage.sender_id === userId &&
-              newMessage.receiver_id ===
-                receiverId) ||
-            (newMessage.sender_id ===
-              receiverId &&
-              newMessage.receiver_id ===
-                userId);
+              newMessage.receiver_id === receiverId) ||
+            (newMessage.sender_id === receiverId &&
+              newMessage.receiver_id === userId);
 
-          /*
-           * Даже если сообщение относится
-           * к другому диалогу, обновляем левый список.
-           */
           if (
             payload.eventType === "INSERT" ||
             payload.eventType === "UPDATE"
@@ -321,37 +285,25 @@ export default function ChatPage() {
 
           if (!belongsToChat) return;
 
-          if (
-            payload.eventType === "INSERT"
-          ) {
+          if (payload.eventType === "INSERT") {
             setMessages((current) => {
               if (
                 current.some(
-                  (item) =>
-                    item.id ===
-                    newMessage.id
+                  (item) => item.id === newMessage.id
                 )
               ) {
                 return current;
               }
 
-              return [
-                ...current,
-                newMessage,
-              ];
+              return [...current, newMessage];
             });
 
-            if (
-              newMessage.receiver_id ===
-              userId
-            ) {
+            if (newMessage.receiver_id === userId) {
               markAsRead(newMessage.id);
             }
           }
 
-          if (
-            payload.eventType === "UPDATE"
-          ) {
+          if (payload.eventType === "UPDATE") {
             setMessages((current) =>
               current.map((item) =>
                 item.id === newMessage.id
@@ -383,9 +335,7 @@ export default function ChatPage() {
 
     const { data, error } = await supabase
       .from("profiles")
-      .select(
-        "id, username, profile_id, avatar_url"
-      )
+      .select("id, username, profile_id, avatar_url")
       .eq("id", receiverId)
       .maybeSingle();
 
@@ -423,56 +373,41 @@ export default function ChatPage() {
       return;
     }
 
-    const loadedMessages =
-      (data || []) as Message[];
+    const loadedMessages = (data || []) as Message[];
 
     setMessages(loadedMessages);
 
     const ids = Array.from(
       new Set(
-        loadedMessages.flatMap(
-          (item) => [
-            item.sender_id,
-            item.receiver_id,
-          ]
-        )
+        loadedMessages.flatMap((item) => [
+          item.sender_id,
+          item.receiver_id,
+        ])
       )
     );
 
     if (ids.length > 0) {
-      const {
-        data: profileData,
-      } = await supabase
+      const { data: profileData } = await supabase
         .from("profiles")
-        .select(
-          "id, username, profile_id, avatar_url"
-        )
+        .select("id, username, profile_id, avatar_url")
         .in("id", ids);
 
       if (profileData) {
-        const map: Record<
-          string,
-          Profile
-        > = {};
+        const map: Record<string, Profile> = {};
 
-        profileData.forEach(
-          (profile) => {
-            map[profile.id] =
-              profile;
-          }
-        );
+        profileData.forEach((profile) => {
+          map[profile.id] = profile;
+        });
 
         setProfiles(map);
       }
     }
 
-    const unread =
-      loadedMessages.filter(
-        (item) =>
-          item.receiver_id ===
-            userId &&
-          !item.is_read
-      );
+    const unread = loadedMessages.filter(
+      (item) =>
+        item.receiver_id === userId &&
+        !item.is_read
+    );
 
     for (const item of unread) {
       await markAsRead(item.id);
@@ -483,6 +418,13 @@ export default function ChatPage() {
     }
   }
 
+  /*
+   * Эмодзи теперь отправляется СРАЗУ.
+   *
+   * Раньше эмодзи добавлялся в поле ввода.
+   * Теперь при нажатии создаётся сообщение
+   * непосредственно в таблице messages.
+   */
   async function addEmoji(emoji: string) {
     if (
       !userId ||
@@ -514,23 +456,18 @@ export default function ChatPage() {
         error
       );
     } else if (data) {
-      const newMessage =
-        data as Message;
+      const newMessage = data as Message;
 
       setMessages((current) => {
         if (
           current.some(
-            (item) =>
-              item.id === newMessage.id
+            (item) => item.id === newMessage.id
           )
         ) {
           return current;
         }
 
-        return [
-          ...current,
-          newMessage,
-        ];
+        return [...current, newMessage];
       });
 
       setShowEmojiPicker(false);
@@ -553,8 +490,7 @@ export default function ChatPage() {
 
     setSending(true);
 
-    const messageText =
-      text.trim();
+    const messageText = text.trim();
 
     const {
       data,
@@ -579,17 +515,13 @@ export default function ChatPage() {
       setMessages((current) => {
         if (
           current.some(
-            (item) =>
-              item.id === data.id
+            (item) => item.id === data.id
           )
         ) {
           return current;
         }
 
-        return [
-          ...current,
-          data,
-        ];
+        return [...current, data as Message];
       });
 
       setText("");
@@ -600,30 +532,23 @@ export default function ChatPage() {
     setSending(false);
   }
 
-  async function markAsRead(
-    messageId: string
-  ) {
+  async function markAsRead(messageId: string) {
     if (!userId) return;
 
     await supabase
       .from("messages")
       .update({
         is_read: true,
-        read_at:
-          new Date().toISOString(),
+        read_at: new Date().toISOString(),
       })
       .eq("id", messageId)
-      .eq(
-        "receiver_id",
-        userId
-      );
+      .eq("receiver_id", userId);
   }
 
   async function handleFileUpload(
     event: React.ChangeEvent<HTMLInputElement>
   ) {
-    const file =
-      event.target.files?.[0];
+    const file = event.target.files?.[0];
 
     if (
       !file ||
@@ -642,25 +567,20 @@ export default function ChatPage() {
       "video/webm",
     ];
 
-    if (
-      !allowedTypes.includes(
-        file.type
-      )
-    ) {
+    if (!allowedTypes.includes(file.type)) {
       alert(
         "Можно отправлять только фото и видео."
       );
+
       event.target.value = "";
       return;
     }
 
-    if (
-      file.size >
-      50 * 1024 * 1024
-    ) {
+    if (file.size > 50 * 1024 * 1024) {
       alert(
         "Размер файла не должен превышать 50 МБ."
       );
+
       event.target.value = "";
       return;
     }
@@ -672,8 +592,7 @@ export default function ChatPage() {
         file.name
           .split(".")
           .pop()
-          ?.toLowerCase() ||
-        "file";
+          ?.toLowerCase() || "file";
 
       const fileName =
         `${Date.now()}-${crypto.randomUUID()}.${extension}`;
@@ -689,8 +608,7 @@ export default function ChatPage() {
           filePath,
           file,
           {
-            contentType:
-              file.type,
+            contentType: file.type,
             upsert: false,
           }
         );
@@ -699,6 +617,7 @@ export default function ChatPage() {
         alert(
           `Ошибка загрузки: ${uploadError.message}`
         );
+
         return;
       }
 
@@ -709,14 +628,10 @@ export default function ChatPage() {
       } =
         supabase.storage
           .from("chat-media")
-          .getPublicUrl(
-            filePath
-          );
+          .getPublicUrl(filePath);
 
       const messageType =
-        file.type.startsWith(
-          "image/"
-        )
+        file.type.startsWith("image/")
           ? "image"
           : "video";
 
@@ -727,17 +642,12 @@ export default function ChatPage() {
         .from("messages")
         .insert({
           sender_id: userId,
-          receiver_id:
-            receiverId,
+          receiver_id: receiverId,
           message: publicUrl,
-          message_type:
-            messageType,
-          file_url:
-            publicUrl,
-          file_name:
-            file.name,
-          file_type:
-            file.type,
+          message_type: messageType,
+          file_url: publicUrl,
+          file_name: file.name,
+          file_type: file.type,
         })
         .select("*")
         .single();
@@ -752,24 +662,17 @@ export default function ChatPage() {
           `Ошибка отправки файла: ${error.message}`
         );
       } else if (data) {
-        setMessages(
-          (current) => {
-            if (
-              current.some(
-                (item) =>
-                  item.id ===
-                  data.id
-              )
-            ) {
-              return current;
-            }
-
-            return [
-              ...current,
-              data,
-            ];
+        setMessages((current) => {
+          if (
+            current.some(
+              (item) => item.id === data.id
+            )
+          ) {
+            return current;
           }
-        );
+
+          return [...current, data as Message];
+        });
 
         await loadChatList();
       }
@@ -779,35 +682,24 @@ export default function ChatPage() {
     }
   }
 
-  async function saveEdit(
-    messageId: string
-  ) {
-    if (!editingText.trim())
-      return;
+  async function saveEdit(messageId: string) {
+    if (!editingText.trim()) return;
 
-    const { error } =
-      await supabase
-        .from("messages")
-        .update({
-          message:
-            editingText.trim(),
-          edited_at:
-            new Date().toISOString(),
-        })
-        .eq(
-          "id",
-          messageId
-        )
-        .eq(
-          "sender_id",
-          userId
-        );
+    const { error } = await supabase
+      .from("messages")
+      .update({
+        message: editingText.trim(),
+        edited_at: new Date().toISOString(),
+      })
+      .eq("id", messageId)
+      .eq("sender_id", userId);
 
     if (error) {
       console.error(
         "Ошибка редактирования:",
         error
       );
+
       return;
     }
 
@@ -818,27 +710,17 @@ export default function ChatPage() {
     await loadChatList();
   }
 
-  function startEdit(
-    message: Message
-  ) {
+  function startEdit(message: Message) {
     setEditingId(message.id);
-    setEditingText(
-      message.message
-    );
+    setEditingText(message.message);
   }
 
-  function getProfile(
-    id: string
-  ) {
+  function getProfile(id: string) {
     return profiles[id];
   }
 
-  function formatTime(
-    date: string
-  ) {
-    return new Date(
-      date
-    ).toLocaleTimeString(
+  function formatTime(date: string) {
+    return new Date(date).toLocaleTimeString(
       "ru-RU",
       {
         hour: "2-digit",
@@ -847,12 +729,8 @@ export default function ChatPage() {
     );
   }
 
-  function formatChatTime(
-    date: string
-  ) {
-    const messageDate =
-      new Date(date);
-
+  function formatChatTime(date: string) {
+    const messageDate = new Date(date);
     const now = new Date();
 
     const sameDay =
@@ -869,8 +747,7 @@ export default function ChatPage() {
       );
     }
 
-    const yesterday =
-      new Date(now);
+    const yesterday = new Date(now);
 
     yesterday.setDate(
       now.getDate() - 1
@@ -899,51 +776,50 @@ export default function ChatPage() {
       return false;
     }
 
-    return /^[\p{Extended_Pictographic}\p{Emoji_Component}\s]+$/u.test(value);
+    return /^[\p{Extended_Pictographic}\p{Emoji_Component}\s]+$/u.test(
+      value
+    );
   }
 
   function getEmojiMessageClass(message: string) {
-    const count = Array.from(message.trim()).filter((char) =>
+    const count = Array.from(
+      message.trim()
+    ).filter((char) =>
       /\p{Extended_Pictographic}/u.test(char)
     ).length;
 
-    if (count <= 1) return "text-6xl leading-none";
-    if (count <= 3) return "text-5xl leading-tight";
-    if (count <= 6) return "text-4xl leading-tight";
+    if (count <= 1) {
+      return "text-6xl leading-none";
+    }
+
+    if (count <= 3) {
+      return "text-5xl leading-tight";
+    }
+
+    if (count <= 6) {
+      return "text-4xl leading-tight";
+    }
 
     return "text-3xl leading-tight";
   }
 
-  function getLastMessagePreview(
-    message: Message
-  ) {
-    if (
-      message.message_type ===
-      "image"
-    ) {
+  function getLastMessagePreview(message: Message) {
+    if (message.message_type === "image") {
       return "📷 Фото";
     }
 
-    if (
-      message.message_type ===
-      "video"
-    ) {
+    if (message.message_type === "video") {
       return "🎥 Видео";
     }
 
-    if (
-      message.message_type ===
-      "system"
-    ) {
+    if (message.message_type === "system") {
       return "Системное сообщение";
     }
 
     return message.message;
   }
 
-  function selectChat(
-    id: string
-  ) {
+  function selectChat(id: string) {
     setReceiverId(id);
   }
 
@@ -955,13 +831,9 @@ export default function ChatPage() {
       y: 0,
     });
 
-    setShowViewerControls(
-      true
-    );
+    setShowViewerControls(true);
 
-    if (
-      hideControlsTimer.current
-    ) {
+    if (hideControlsTimer.current) {
       clearTimeout(
         hideControlsTimer.current
       );
@@ -969,9 +841,7 @@ export default function ChatPage() {
   }
 
   function openMedia(
-    type:
-      | "image"
-      | "video",
+    type: "image" | "video",
     url: string
   ) {
     resetViewer();
@@ -986,12 +856,9 @@ export default function ChatPage() {
 
   function closeMedia() {
     setMediaViewer(null);
-
     resetViewer();
 
-    if (
-      document.fullscreenElement
-    ) {
+    if (document.fullscreenElement) {
       document
         .exitFullscreen()
         .catch(() => {});
@@ -999,56 +866,39 @@ export default function ChatPage() {
   }
 
   function startControlsTimer() {
-    if (
-      hideControlsTimer.current
-    ) {
+    if (hideControlsTimer.current) {
       clearTimeout(
         hideControlsTimer.current
       );
     }
 
-    setShowViewerControls(
-      true
-    );
+    setShowViewerControls(true);
 
     hideControlsTimer.current =
       setTimeout(() => {
-        setShowViewerControls(
-          false
-        );
+        setShowViewerControls(false);
       }, 5000);
   }
 
   function toggleViewerControls() {
-    if (
-      showViewerControls
-    ) {
-      if (
-        hideControlsTimer.current
-      ) {
+    if (showViewerControls) {
+      if (hideControlsTimer.current) {
         clearTimeout(
           hideControlsTimer.current
         );
       }
 
-      setShowViewerControls(
-        false
-      );
+      setShowViewerControls(false);
     } else {
       startControlsTimer();
     }
   }
 
-  function changeZoom(
-    amount: number
-  ) {
+  function changeZoom(amount: number) {
     setZoom((current) => {
       const next = Math.min(
         5,
-        Math.max(
-          1,
-          current + amount
-        )
+        Math.max(1, current + amount)
       );
 
       if (next === 1) {
@@ -1069,8 +919,7 @@ export default function ChatPage() {
   ) {
     if (
       !mediaViewer ||
-      mediaViewer.type !==
-        "image"
+      mediaViewer.type !== "image"
     ) {
       return;
     }
@@ -1090,15 +939,13 @@ export default function ChatPage() {
   ) {
     if (
       !mediaViewer ||
-      mediaViewer.type !==
-        "image" ||
+      mediaViewer.type !== "image" ||
       zoom <= 1
     ) {
       return;
     }
 
-    draggingRef.current =
-      true;
+    draggingRef.current = true;
 
     dragStartRef.current = {
       x: event.clientX,
@@ -1116,8 +963,7 @@ export default function ChatPage() {
     if (
       !draggingRef.current ||
       !mediaViewer ||
-      mediaViewer.type !==
-        "image"
+      mediaViewer.type !== "image"
     ) {
       return;
     }
@@ -1132,17 +978,16 @@ export default function ChatPage() {
 
     setPosition({
       x:
-        dragStartRef.current
-          .positionX + dx,
+        dragStartRef.current.positionX +
+        dx,
       y:
-        dragStartRef.current
-          .positionY + dy,
+        dragStartRef.current.positionY +
+        dy,
     });
   }
 
   function handleMouseUp() {
-    draggingRef.current =
-      false;
+    draggingRef.current = false;
   }
 
   function getTouchDistance(
@@ -1152,10 +997,8 @@ export default function ChatPage() {
       return 0;
     }
 
-    const first =
-      touches[0];
-    const second =
-      touches[1];
+    const first = touches[0];
+    const second = touches[1];
 
     const dx =
       second.clientX -
@@ -1175,17 +1018,14 @@ export default function ChatPage() {
   ) {
     if (
       !mediaViewer ||
-      mediaViewer.type !==
-        "image"
+      mediaViewer.type !== "image"
     ) {
       return;
     }
 
     startControlsTimer();
 
-    if (
-      event.touches.length === 2
-    ) {
+    if (event.touches.length === 2) {
       const distance =
         getTouchDistance(
           event.touches
@@ -1193,8 +1033,7 @@ export default function ChatPage() {
 
       pinchRef.current = {
         active: true,
-        startDistance:
-          distance,
+        startDistance: distance,
         startZoom: zoom,
         lastX: 0,
         lastY: 0,
@@ -1207,17 +1046,14 @@ export default function ChatPage() {
       event.touches.length === 1 &&
       zoom > 1
     ) {
-      const touch =
-        event.touches[0];
+      const touch = event.touches[0];
 
       pinchRef.current = {
         active: true,
         startDistance: 0,
         startZoom: zoom,
-        lastX:
-          touch.clientX,
-        lastY:
-          touch.clientY,
+        lastX: touch.clientX,
+        lastY: touch.clientY,
       };
     }
   }
@@ -1227,8 +1063,7 @@ export default function ChatPage() {
   ) {
     if (
       !mediaViewer ||
-      mediaViewer.type !==
-        "image"
+      mediaViewer.type !== "image"
     ) {
       return;
     }
@@ -1256,16 +1091,14 @@ export default function ChatPage() {
         pinchRef.current
           .startDistance;
 
-      const newZoom =
-        Math.min(
-          5,
-          Math.max(
-            1,
-            pinchRef.current
-              .startZoom *
-              scale
-          )
-        );
+      const newZoom = Math.min(
+        5,
+        Math.max(
+          1,
+          pinchRef.current.startZoom *
+            scale
+        )
+      );
 
       setZoom(newZoom);
 
@@ -1288,8 +1121,7 @@ export default function ChatPage() {
     ) {
       event.preventDefault();
 
-      const touch =
-        event.touches[0];
+      const touch = event.touches[0];
 
       const dx =
         touch.clientX -
@@ -1299,14 +1131,10 @@ export default function ChatPage() {
         touch.clientY -
         pinchRef.current.lastY;
 
-      setPosition(
-        (current) => ({
-          x:
-            current.x + dx,
-          y:
-            current.y + dy,
-        })
-      );
+      setPosition((current) => ({
+        x: current.x + dx,
+        y: current.y + dy,
+      }));
 
       pinchRef.current.lastX =
         touch.clientX;
@@ -1319,19 +1147,15 @@ export default function ChatPage() {
   }
 
   function handleTouchEnd() {
-    pinchRef.current.active =
-      false;
+    pinchRef.current.active = false;
   }
 
   function toggleFullscreen() {
-    const element =
-      viewerRef.current;
+    const element = viewerRef.current;
 
     if (!element) return;
 
-    if (
-      !document.fullscreenElement
-    ) {
+    if (!document.fullscreenElement) {
       element
         .requestFullscreen()
         .catch(() => {});
@@ -1371,9 +1195,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     return () => {
-      if (
-        hideControlsTimer.current
-      ) {
+      if (hideControlsTimer.current) {
         clearTimeout(
           hideControlsTimer.current
         );
@@ -1421,10 +1243,6 @@ export default function ChatPage() {
           </div>
 
           <div className="flex min-h-[700px] flex-col md:flex-row">
-            {/* =========================
-                ЛЕВАЯ ПАНЕЛЬ — МОИ ЧАТЫ
-            ========================== */}
-
             <aside className="w-full shrink-0 border-b border-border md:w-[330px] md:border-b-0 md:border-r">
               <div className="border-b border-border px-5 py-4">
                 <h2 className="font-semibold">
@@ -1458,133 +1276,117 @@ export default function ChatPage() {
                   </div>
                 ) : (
                   <div>
-                    {chatList.map(
-                      (chat) => {
-                        const active =
-                          chat.userId ===
-                          receiverId;
+                    {chatList.map((chat) => {
+                      const active =
+                        chat.userId === receiverId;
 
-                        const username =
-                          chat.profile
-                            ?.username ||
-                          "Пользователь";
+                      const username =
+                        chat.profile?.username ||
+                        "Пользователь";
 
-                        return (
-                          <button
-                            key={
+                      return (
+                        <button
+                          key={chat.userId}
+                          type="button"
+                          onClick={() =>
+                            selectChat(
                               chat.userId
-                            }
-                            type="button"
-                            onClick={() =>
-                              selectChat(
-                                chat.userId
-                              )
-                            }
-                            className={`flex w-full items-center gap-3 border-b border-border px-4 py-3 text-left transition ${
-                              active
-                                ? "bg-primary/10"
-                                : "hover:bg-background"
-                            }`}
-                          >
-                            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-primary to-accent">
-                              {chat.profile
-                                ?.avatar_url ? (
-                                <img
-                                  src={
-                                    chat
-                                      .profile
-                                      .avatar_url
-                                  }
-                                  alt=""
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center font-bold text-white">
-                                  {username
-                                    .charAt(
-                                      0
-                                    )
-                                    .toUpperCase()}
-                                </div>
-                              )}
+                            )
+                          }
+                          className={`flex w-full items-center gap-3 border-b border-border px-4 py-3 text-left transition ${
+                            active
+                              ? "bg-primary/10"
+                              : "hover:bg-background"
+                          }`}
+                        >
+                          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-primary to-accent">
+                            {chat.profile?.avatar_url ? (
+                              <img
+                                src={
+                                  chat.profile
+                                    .avatar_url
+                                }
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center font-bold text-white">
+                                {username
+                                  .charAt(0)
+                                  .toUpperCase()}
+                              </div>
+                            )}
+
+                            {chat.unreadCount > 0 && (
+                              <span className="absolute bottom-0 right-0 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-card bg-primary px-1 text-[10px] font-bold text-white">
+                                {chat.unreadCount >
+                                99
+                                  ? "99+"
+                                  : chat.unreadCount}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span
+                                className={`truncate text-sm ${
+                                  chat.unreadCount >
+                                  0
+                                    ? "font-bold"
+                                    : "font-semibold"
+                                }`}
+                              >
+                                {username}
+                              </span>
+
+                              <span
+                                className={`shrink-0 text-[10px] ${
+                                  chat.unreadCount >
+                                  0
+                                    ? "font-semibold text-primary"
+                                    : "text-text-secondary"
+                                }`}
+                              >
+                                {formatChatTime(
+                                  chat.lastMessage
+                                    .created_at
+                                )}
+                              </span>
+                            </div>
+
+                            <div className="mt-1 flex items-center gap-2">
+                              <p
+                                className={`min-w-0 flex-1 truncate text-xs ${
+                                  chat.unreadCount >
+                                  0
+                                    ? "font-medium text-foreground"
+                                    : "text-text-secondary"
+                                }`}
+                              >
+                                {chat.lastMessage
+                                  .sender_id ===
+                                  userId &&
+                                  "Вы: "}
+
+                                {getLastMessagePreview(
+                                  chat.lastMessage
+                                )}
+                              </p>
 
                               {chat.unreadCount >
                                 0 && (
-                                <span className="absolute bottom-0 right-0 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-card bg-primary px-1 text-[10px] font-bold text-white">
-                                  {chat.unreadCount >
-                                  99
-                                    ? "99+"
-                                    : chat.unreadCount}
-                                </span>
+                                <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
                               )}
                             </div>
-
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <span
-                                  className={`truncate text-sm ${
-                                    chat.unreadCount >
-                                    0
-                                      ? "font-bold"
-                                      : "font-semibold"
-                                  }`}
-                                >
-                                  {username}
-                                </span>
-
-                                <span
-                                  className={`shrink-0 text-[10px] ${
-                                    chat.unreadCount >
-                                    0
-                                      ? "font-semibold text-primary"
-                                      : "text-text-secondary"
-                                  }`}
-                                >
-                                  {formatChatTime(
-                                    chat
-                                      .lastMessage
-                                      .created_at
-                                  )}
-                                </span>
-                              </div>
-
-                              <div className="mt-1 flex items-center gap-2">
-                                <p
-                                  className={`min-w-0 flex-1 truncate text-xs ${
-                                    chat.unreadCount >
-                                    0
-                                      ? "font-medium text-foreground"
-                                      : "text-text-secondary"
-                                  }`}
-                                >
-                                  {chat.lastMessage
-                                    .sender_id ===
-                                    userId &&
-                                    "Вы: "}
-
-                                  {getLastMessagePreview(
-                                    chat.lastMessage
-                                  )}
-                                </p>
-
-                                {chat.unreadCount >
-                                  0 && (
-                                  <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      }
-                    )}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
             </aside>
-
-            {/* =========================
-                ПРАВАЯ ПАНЕЛЬ — ДИАЛОГ
-            ========================== */}
 
             <section className="flex min-w-0 flex-1 flex-col">
               {!receiverId ? (
@@ -1606,8 +1408,6 @@ export default function ChatPage() {
                 </div>
               ) : (
                 <>
-                  {/* Шапка диалога */}
-
                   <div className="flex items-center gap-3 border-b border-border px-4 py-4 sm:px-5">
                     <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-primary to-accent">
                       {receiver?.avatar_url ? (
@@ -1654,11 +1454,8 @@ export default function ChatPage() {
                     </div>
                   </div>
 
-                  {/* Сообщения */}
-
                   <div className="min-h-[500px] max-h-[650px] flex-1 overflow-y-auto bg-background px-4 py-6 sm:px-6">
-                    {messages.length ===
-                    0 ? (
+                    {messages.length === 0 ? (
                       <div className="flex min-h-[450px] items-center justify-center">
                         <div className="text-center">
                           <div className="mb-3 text-4xl">
@@ -1672,266 +1469,256 @@ export default function ChatPage() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {messages.map(
-                          (item) => {
-                            const mine =
-                              item.sender_id ===
-                              userId;
+                        {messages.map((item) => {
+                          const mine =
+                            item.sender_id ===
+                            userId;
 
-                            const profile =
-                              getProfile(
-                                item.sender_id
-                              );
+                          const profile =
+                            getProfile(
+                              item.sender_id
+                            );
 
-                            if (
-                              item.message_type ===
-                              "system"
-                            ) {
-                              return (
-                                <div
-                                  key={
-                                    item.id
-                                  }
-                                  className="flex justify-center"
-                                >
-                                  <div className="rounded-2xl border border-border bg-card px-5 py-3 text-center text-xs text-text-secondary">
-                                    {
-                                      item.message
-                                    }
-                                  </div>
-                                </div>
-                              );
-                            }
-
-                            const mediaUrl =
-                              item.file_url ||
-                              item.message;
-
+                          if (
+                            item.message_type ===
+                            "system"
+                          ) {
                             return (
                               <div
-                                key={
-                                  item.id
-                                }
-                                className={`flex ${
-                                  mine
-                                    ? "justify-end"
-                                    : "justify-start"
-                                }`}
+                                key={item.id}
+                                className="flex justify-center"
                               >
-                                <div
-                                  className={`flex max-w-[85%] gap-2 ${
-                                    mine
-                                      ? "flex-row-reverse"
-                                      : ""
-                                  }`}
-                                >
-                                  <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-primary to-accent">
-                                    {profile?.avatar_url ? (
-                                      <img
-                                        src={
-                                          profile.avatar_url
-                                        }
-                                        alt=""
-                                        className="h-full w-full object-cover"
-                                      />
-                                    ) : (
-                                      <div className="flex h-full w-full items-center justify-center text-sm font-bold text-white">
-                                        {profile?.username
-                                          ?.charAt(
-                                            0
-                                          )
-                                          .toUpperCase() ||
-                                          "U"}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div
-                                    className={`min-w-0 rounded-3xl border px-4 py-3 ${
-                                      mine
-                                        ? "border-primary/30 bg-primary/10"
-                                        : "border-border bg-card"
-                                    }`}
-                                  >
-                                    <Link
-                                      href={`/profile/${
-                                        profile?.profile_id ||
-                                        item.sender_id
-                                      }`}
-                                      className="mb-1 block text-xs font-semibold text-primary hover:underline"
-                                    >
-                                      {profile?.username ||
-                                        "Пользователь"}
-                                    </Link>
-
-                                    {editingId ===
-                                    item.id ? (
-                                      <div className="min-w-[220px]">
-                                        <textarea
-                                          value={
-                                            editingText
-                                          }
-                                          onChange={(
-                                            e
-                                          ) =>
-                                            setEditingText(
-                                              e
-                                                .target
-                                                .value
-                                            )
-                                          }
-                                          rows={
-                                            3
-                                          }
-                                          className="w-full resize-none rounded-xl border border-border bg-background p-3 text-sm outline-none focus:border-primary"
-                                        />
-
-                                        <div className="mt-2 flex gap-2">
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              saveEdit(
-                                                item.id
-                                              )
-                                            }
-                                            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white"
-                                          >
-                                            Сохранить
-                                          </button>
-
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setEditingId(
-                                                null
-                                              );
-                                              setEditingText(
-                                                ""
-                                              );
-                                            }}
-                                            className="rounded-lg border border-border px-3 py-1.5 text-xs"
-                                          >
-                                            Отмена
-                                          </button>
-                                        </div>
-                                      </div>
-                                    ) : item.message_type ===
-                                      "image" ? (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          openMedia(
-                                            "image",
-                                            mediaUrl
-                                          )
-                                        }
-                                        className="block max-w-full cursor-zoom-in overflow-hidden rounded-2xl text-left"
-                                      >
-                                        <img
-                                          src={
-                                            mediaUrl
-                                          }
-                                          alt="Изображение"
-                                          className="max-h-96 max-w-full rounded-2xl object-contain transition duration-200 hover:opacity-90"
-                                        />
-                                      </button>
-                                    ) : 
-                                      item.message_type ===
-                                      "video" ? (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          openMedia(
-                                            "video",
-                                            mediaUrl
-                                          )
-                                        }
-                                        className="group relative block max-w-full overflow-hidden rounded-2xl"
-                                      >
-                                        <video
-                                          src={
-                                            mediaUrl
-                                          }
-                                          preload="metadata"
-                                          muted
-                                          playsInline
-                                          className="max-h-96 max-w-full rounded-2xl object-contain"
-                                        />
-
-                                        <span className="absolute inset-0 flex items-center justify-center bg-black/10 transition group-hover:bg-black/20">
-                                          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/60 text-2xl text-white backdrop-blur-sm">
-                                            ▶
-                                          </span>
-                                        </span>
-                                      </button>
-                                    ) : 
-                                      isEmojiOnlyMessage(item.message) ? (
-                                        <p
-                                          className={`whitespace-pre-wrap break-words ${getEmojiMessageClass(
-                                            item.message
-                                          )}`}
-                                        >
-                                          {item.message}
-                                        </p>
-                                      ) : (
-                                        <p className="whitespace-pre-wrap break-words text-sm">
-                                          {item.message}
-                                        </p>
-                                      )}
-
-                                    <div className="mt-2 flex items-center justify-end gap-1 text-[10px] text-text-secondary">
-                                      {item.edited_at && (
-                                        <span>
-                                          изменено
-                                        </span>
-                                      )}
-
-                                      <span>
-                                        {formatTime(
-                                          item.created_at
-                                        )}
-                                      </span>
-
-                                      {mine && (
-                                        <span
-                                          className={
-                                            item.is_read
-                                              ? "text-blue-400"
-                                              : "text-text-secondary"
-                                          }
-                                        >
-                                          {item.is_read
-                                            ? "✓✓"
-                                            : "✓"}
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    {mine &&
-                                      item.message_type ===
-                                        "text" &&
-                                      editingId !==
-                                        item.id && (
-                                        <div className="mt-1 text-right">
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              startEdit(
-                                                item
-                                              )
-                                            }
-                                            className="text-[10px] text-text-secondary transition hover:text-primary"
-                                          >
-                                            Изменить
-                                          </button>
-                                        </div>
-                                      )}
-                                  </div>
+                                <div className="rounded-2xl border border-border bg-card px-5 py-3 text-center text-xs text-text-secondary">
+                                  {item.message}
                                 </div>
                               </div>
                             );
                           }
-                        )}
+
+                          const mediaUrl =
+                            item.file_url ||
+                            item.message;
+
+                          return (
+                            <div
+                              key={item.id}
+                              className={`flex ${
+                                mine
+                                  ? "justify-end"
+                                  : "justify-start"
+                              }`}
+                            >
+                              <div
+                                className={`flex max-w-[85%] gap-2 ${
+                                  mine
+                                    ? "flex-row-reverse"
+                                    : ""
+                                }`}
+                              >
+                                <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-primary to-accent">
+                                  {profile?.avatar_url ? (
+                                    <img
+                                      src={
+                                        profile.avatar_url
+                                      }
+                                      alt=""
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center text-sm font-bold text-white">
+                                      {profile?.username
+                                        ?.charAt(
+                                          0
+                                        )
+                                        .toUpperCase() ||
+                                        "U"}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div
+                                  className={`min-w-0 rounded-3xl border px-4 py-3 ${
+                                    mine
+                                      ? "border-primary/30 bg-primary/10"
+                                      : "border-border bg-card"
+                                  }`}
+                                >
+                                  <Link
+                                    href={`/profile/${
+                                      profile?.profile_id ||
+                                      item.sender_id
+                                    }`}
+                                    className="mb-1 block text-xs font-semibold text-primary hover:underline"
+                                  >
+                                    {profile?.username ||
+                                      "Пользователь"}
+                                  </Link>
+
+                                  {editingId ===
+                                  item.id ? (
+                                    <div className="min-w-[220px]">
+                                      <textarea
+                                        value={
+                                          editingText
+                                        }
+                                        onChange={(
+                                          e
+                                        ) =>
+                                          setEditingText(
+                                            e.target
+                                              .value
+                                          )
+                                        }
+                                        rows={3}
+                                        className="w-full resize-none rounded-xl border border-border bg-background p-3 text-sm outline-none focus:border-primary"
+                                      />
+
+                                      <div className="mt-2 flex gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            saveEdit(
+                                              item.id
+                                            )
+                                          }
+                                          className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white"
+                                        >
+                                          Сохранить
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setEditingId(
+                                              null
+                                            );
+
+                                            setEditingText(
+                                              ""
+                                            );
+                                          }}
+                                          className="rounded-lg border border-border px-3 py-1.5 text-xs"
+                                        >
+                                          Отмена
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : item.message_type ===
+                                    "image" ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        openMedia(
+                                          "image",
+                                          mediaUrl
+                                        )
+                                      }
+                                      className="block max-w-full cursor-zoom-in overflow-hidden rounded-2xl text-left"
+                                    >
+                                      <img
+                                        src={
+                                          mediaUrl
+                                        }
+                                        alt="Изображение"
+                                        className="max-h-96 max-w-full rounded-2xl object-contain transition duration-200 hover:opacity-90"
+                                      />
+                                    </button>
+                                  ) : item.message_type ===
+                                    "video" ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        openMedia(
+                                          "video",
+                                          mediaUrl
+                                        )
+                                      }
+                                      className="group relative block max-w-full overflow-hidden rounded-2xl"
+                                    >
+                                      <video
+                                        src={
+                                          mediaUrl
+                                        }
+                                        preload="metadata"
+                                        muted
+                                        playsInline
+                                        className="max-h-96 max-w-full rounded-2xl object-contain"
+                                      />
+
+                                      <span className="absolute inset-0 flex items-center justify-center bg-black/10 transition group-hover:bg-black/20">
+                                        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/60 text-2xl text-white backdrop-blur-sm">
+                                          ▶
+                                        </span>
+                                      </span>
+                                    </button>
+                                  ) : isEmojiOnlyMessage(
+                                      item.message
+                                    ) ? (
+                                    <p
+                                      className={`whitespace-pre-wrap break-words ${getEmojiMessageClass(
+                                        item.message
+                                      )}`}
+                                    >
+                                      {item.message}
+                                    </p>
+                                  ) : (
+                                    <p className="whitespace-pre-wrap break-words text-sm">
+                                      {item.message}
+                                    </p>
+                                  )}
+
+                                  <div className="mt-2 flex items-center justify-end gap-1 text-[10px] text-text-secondary">
+                                    {item.edited_at && (
+                                      <span>
+                                        изменено
+                                      </span>
+                                    )}
+
+                                    <span>
+                                      {formatTime(
+                                        item.created_at
+                                      )}
+                                    </span>
+
+                                    {mine && (
+                                      <span
+                                        className={
+                                          item.is_read
+                                            ? "text-blue-400"
+                                            : "text-text-secondary"
+                                        }
+                                      >
+                                        {item.is_read
+                                          ? "✓✓"
+                                          : "✓"}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {mine &&
+                                    item.message_type ===
+                                      "text" &&
+                                    editingId !==
+                                      item.id && (
+                                      <div className="mt-1 text-right">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            startEdit(
+                                              item
+                                            )
+                                          }
+                                          className="text-[10px] text-text-secondary transition hover:text-primary"
+                                        >
+                                          Изменить
+                                        </button>
+                                      </div>
+                                    )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
 
                         <div
                           ref={
@@ -1942,8 +1729,6 @@ export default function ChatPage() {
                     )}
                   </div>
 
-                  {/* Поле ввода */}
-
                   <div className="border-t border-border bg-card p-4">
                     <div className="flex items-end gap-2 rounded-3xl border border-border bg-background p-2">
                       <button
@@ -1951,9 +1736,7 @@ export default function ChatPage() {
                         onClick={() =>
                           fileInputRef.current?.click()
                         }
-                        disabled={
-                          uploading
-                        }
+                        disabled={uploading}
                         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border text-lg transition hover:border-primary/50 disabled:opacity-50"
                         title="Фото или видео"
                       >
@@ -1961,9 +1744,7 @@ export default function ChatPage() {
                       </button>
 
                       <input
-                        ref={
-                          fileInputRef
-                        }
+                        ref={fileInputRef}
                         type="file"
                         accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"
                         onChange={
@@ -1976,9 +1757,13 @@ export default function ChatPage() {
                         <button
                           type="button"
                           onClick={() =>
-                            setShowEmojiPicker((current) => !current)
+                            setShowEmojiPicker(
+                              (current) =>
+                                !current
+                            )
                           }
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border text-lg transition hover:border-primary/50"
+                          disabled={sending}
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border text-lg transition hover:border-primary/50 disabled:opacity-50"
                           title="Эмодзи"
                         >
                           😊
@@ -1986,16 +1771,23 @@ export default function ChatPage() {
 
                         {showEmojiPicker && (
                           <div className="absolute bottom-14 left-0 z-30 grid w-[252px] grid-cols-6 gap-1 rounded-2xl border border-border bg-card p-2 shadow-xl">
-                            {EMOJI_LIST.map((emoji) => (
-                              <button
-                                key={emoji}
-                                type="button"
-                                onClick={() => addEmoji(emoji)}
-                                className="flex h-9 w-9 items-center justify-center rounded-xl text-xl transition hover:bg-primary/10"
-                              >
-                                {emoji}
-                              </button>
-                            ))}
+                            {EMOJI_LIST.map(
+                              (emoji) => (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() =>
+                                    addEmoji(
+                                      emoji
+                                    )
+                                  }
+                                  disabled={sending}
+                                  className="flex h-9 w-9 items-center justify-center rounded-xl text-xl transition hover:bg-primary/10 disabled:opacity-50"
+                                >
+                                  {emoji}
+                                </button>
+                              )
+                            )}
                           </div>
                         )}
                       </div>
@@ -2003,7 +1795,9 @@ export default function ChatPage() {
                       <textarea
                         value={text}
                         onChange={(e) =>
-                          setText(e.target.value)
+                          setText(
+                            e.target.value
+                          )
                         }
                         onKeyDown={(e) => {
                           if (
@@ -2048,38 +1842,18 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* =========================
-          ПРОСМОТР МЕДИА
-      ========================== */}
-
       {mediaViewer && (
         <div
           ref={viewerRef}
           className="fixed inset-0 z-[100] bg-black/95"
-          onWheel={
-            handleViewerWheel
-          }
-          onMouseDown={
-            handleMouseDown
-          }
-          onMouseMove={
-            handleMouseMove
-          }
-          onMouseUp={
-            handleMouseUp
-          }
-          onMouseLeave={
-            handleMouseUp
-          }
-          onTouchStart={
-            handleTouchStart
-          }
-          onTouchMove={
-            handleTouchMove
-          }
-          onTouchEnd={
-            handleTouchEnd
-          }
+          onWheel={handleViewerWheel}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
           <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
             <button
@@ -2114,18 +1888,14 @@ export default function ChatPage() {
               {mediaViewer.type ===
               "image" ? (
                 <img
-                  src={
-                    mediaViewer.url
-                  }
+                  src={mediaViewer.url}
                   alt="Просмотр изображения"
                   draggable={false}
                   className="block max-h-[calc(100vh-120px)] max-w-[calc(100vw-40px)] select-none object-contain sm:max-h-[calc(100vh-140px)] sm:max-w-[calc(100vw-80px)]"
                 />
               ) : (
                 <video
-                  src={
-                    mediaViewer.url
-                  }
+                  src={mediaViewer.url}
                   controls
                   autoPlay
                   playsInline
@@ -2152,9 +1922,7 @@ export default function ChatPage() {
 
               <button
                 type="button"
-                onClick={
-                  closeMedia
-                }
+                onClick={closeMedia}
                 className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/50 text-xl text-white/80 backdrop-blur-md transition hover:bg-black/70 hover:text-white"
                 title="Закрыть"
               >
@@ -2168,13 +1936,9 @@ export default function ChatPage() {
                 <button
                   type="button"
                   onClick={() =>
-                    changeZoom(
-                      -0.5
-                    )
+                    changeZoom(-0.5)
                   }
-                  disabled={
-                    zoom <= 1
-                  }
+                  disabled={zoom <= 1}
                   className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-xl text-white/90 transition hover:bg-white/25 disabled:opacity-30"
                   title="Уменьшить"
                 >
@@ -2191,13 +1955,9 @@ export default function ChatPage() {
                 <button
                   type="button"
                   onClick={() =>
-                    changeZoom(
-                      0.5
-                    )
+                    changeZoom(0.5)
                   }
-                  disabled={
-                    zoom >= 5
-                  }
+                  disabled={zoom >= 5}
                   className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-xl text-white/90 transition hover:bg-white/25 disabled:opacity-30"
                   title="Увеличить"
                 >
@@ -2208,10 +1968,12 @@ export default function ChatPage() {
                   type="button"
                   onClick={() => {
                     setZoom(1);
+
                     setPosition({
                       x: 0,
                       y: 0,
                     });
+
                     startControlsTimer();
                   }}
                   className="ml-1 rounded-xl bg-white/10 px-3 py-2 text-xs text-white/80 transition hover:bg-white/20"

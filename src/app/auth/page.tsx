@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-export default function AuthPage() {
+function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -168,5 +168,23 @@ export default function AuthPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto flex min-h-[70vh] max-w-md items-center px-4 py-12">
+          <div className="w-full rounded-3xl border border-border bg-card p-8">
+            <div className="text-sm text-text-secondary">
+              Загрузка...
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <AuthForm />
+    </Suspense>
   );
 }
