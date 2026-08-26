@@ -1,10 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function AuthPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const redirectTo = searchParams.get("redirect") || "/";
+
   const [isRegister, setIsRegister] = useState(false);
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -17,9 +24,21 @@ export default function AuthPage() {
 
     try {
       if (isRegister) {
+        const cleanUsername = username.trim();
+
+        if (cleanUsername.length < 3) {
+          setMessage("Никнейм должен содержать минимум 3 символа.");
+          return;
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              username: cleanUsername,
+            },
+          },
         });
 
         if (error) {
@@ -41,7 +60,8 @@ export default function AuthPage() {
           return;
         }
 
-        setMessage("Вы успешно вошли в аккаунт.");
+        router.push(redirectTo);
+        router.refresh();
       }
     } catch {
       setMessage("Произошла непредвиденная ошибка.");
@@ -64,6 +84,25 @@ export default function AuthPage() {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {isRegister && (
+            <div>
+              <label className="mb-2 block text-sm font-medium">
+                Никнейм
+              </label>
+
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                minLength={3}
+                maxLength={30}
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-primary"
+                placeholder="Например, Komlin"
+              />
+            </div>
+          )}
+
           <div>
             <label className="mb-2 block text-sm font-medium">
               Email

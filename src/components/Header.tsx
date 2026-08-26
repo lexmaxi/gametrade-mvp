@@ -8,8 +8,71 @@ export default function Header() {
   const [search, setSearch] = useState("");
   const [username, setUsername] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
+    let lastSeenInterval: ReturnType<typeof setInterval> | null = null;
+    let messagesChannel:
+      | ReturnType<typeof supabase.channel>
+      | null = null;
+
+    async function updateLastSeen(userId: string) {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          last_seen: new Date().toISOString(),
+        })
+        .eq("id", userId);
+
+      if (error) {
+        console.error("Ошибка обновления last_seen:", error);
+      }
+    }
+
+    async function loadUnreadMessages(userId: string) {
+      const { count, error } = await supabase
+        .from("messages")
+        .select("*", {
+          count: "exact",
+          head: true,
+        })
+        .eq("receiver_id", userId)
+        .eq("is_read", false);
+
+      if (error) {
+        console.error(
+          "Ошибка загрузки непрочитанных сообщений:",
+          error
+        );
+        return;
+      }
+
+      setUnreadMessages(count ?? 0);
+    }
+
+    function subscribeToMessages(userId: string) {
+      if (messagesChannel) {
+        supabase.removeChannel(messagesChannel);
+      }
+
+      messagesChannel = supabase
+        .channel(`header-messages-${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "messages",
+            filter: `receiver_id=eq.${userId}`,
+          },
+          () => {
+            loadUnreadMessages(userId);
+          }
+        )
+        .subscribe();
+    }
+
     async function loadUser() {
       const {
         data: { user },
@@ -18,18 +81,50 @@ export default function Header() {
       if (!user) {
         setUsername(null);
         setEmail(null);
+        setAvatarUrl(null);
+        setUnreadMessages(0);
+
+        if (lastSeenInterval) {
+          clearInterval(lastSeenInterval);
+          lastSeenInterval = null;
+        }
+
+        if (messagesChannel) {
+          supabase.removeChannel(messagesChannel);
+          messagesChannel = null;
+        }
+
         return;
       }
 
       setEmail(user.email ?? null);
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
-        .select("username")
+        .select("username, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
 
+      if (error) {
+        console.error("Ошибка загрузки профиля:", error);
+      }
+
       setUsername(data?.username ?? null);
+      setAvatarUrl(data?.avatar_url ?? null);
+
+      await updateLastSeen(user.id);
+
+      await loadUnreadMessages(user.id);
+
+      subscribeToMessages(user.id);
+
+      if (lastSeenInterval) {
+        clearInterval(lastSeenInterval);
+      }
+
+      lastSeenInterval = setInterval(() => {
+        updateLastSeen(user.id);
+      }, 60 * 1000);
     }
 
     loadUser();
@@ -42,10 +137,31 @@ export default function Header() {
 
     return () => {
       subscription.unsubscribe();
+
+      if (lastSeenInterval) {
+        clearInterval(lastSeenInterval);
+      }
+
+      if (messagesChannel) {
+        supabase.removeChannel(messagesChannel);
+      }
     };
   }, []);
 
   async function handleLogout() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      await supabase
+        .from("profiles")
+        .update({
+          last_seen: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+    }
+
     await supabase.auth.signOut();
     window.location.href = "/";
   }
@@ -53,27 +169,27 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-[#0b0614]/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6">
-
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 shrink-0">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-white font-bold text-lg">
+        <Link
+          href="/"
+          className="flex shrink-0 items-center gap-2"
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-lg font-bold text-white">
             GT
           </div>
 
-          <span className="hidden sm:block text-xl font-bold gradient-text">
+          <span className="hidden text-xl font-bold gradient-text sm:block">
             GameTrade
           </span>
         </Link>
 
-        {/* Search */}
-        <div className="flex-1 max-w-xl">
+        <div className="max-w-xl flex-1">
           <div className="relative">
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Поиск аккаунтов, буста, услуг..."
-              className="w-full rounded-xl border border-border bg-card px-4 py-2.5 pl-10 text-sm text-foreground placeholder:text-text-secondary/60 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition"
+              className="w-full rounded-xl border border-border bg-card py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-text-secondary/60 transition focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
 
             <svg
@@ -86,27 +202,23 @@ export default function Header() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 0 0 0 14 0z"
               />
             </svg>
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
-
-          {/* Sell */}
           <Link
             href="/sell"
-            className="hidden sm:flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-primary to-primary-hover px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition glow-primary"
+            className="hidden items-center gap-1.5 rounded-xl bg-gradient-to-r from-primary to-primary-hover px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 glow-primary sm:flex"
           >
             Продать
           </Link>
 
-          {/* Favorites */}
           <Link
             href="/favorites"
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-text-secondary hover:text-foreground hover:border-primary/50 transition"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-text-secondary transition hover:border-primary/50 hover:text-foreground"
             title="Избранное"
           >
             <svg
@@ -124,10 +236,9 @@ export default function Header() {
             </svg>
           </Link>
 
-          {/* Chat */}
           <Link
             href="/chat"
-            className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-text-secondary hover:text-foreground hover:border-primary/50 transition"
+            className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-text-secondary transition hover:border-primary/50 hover:text-foreground"
             title="Сообщения"
           >
             <svg
@@ -144,31 +255,60 @@ export default function Header() {
               />
             </svg>
 
-            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">
-              2
-            </span>
+            {unreadMessages > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-white">
+                {unreadMessages > 99
+                  ? "99+"
+                  : unreadMessages}
+              </span>
+            )}
           </Link>
 
-          {/* User */}
+          <Link
+            href="/orders"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-text-secondary transition hover:border-primary/50 hover:text-foreground"
+            title="Мои сделки"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12l2 2 4-4"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 22a10 10 0 100-20 10 10 0 000 20z"
+              />
+            </svg>
+          </Link>
+
           {username || email ? (
             <div className="flex items-center gap-2">
               <Link
                 href="/profile"
-                className="flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground hover:border-primary/50 transition"
+                className="flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-2 text-sm font-medium text-foreground transition hover:border-primary/50 sm:px-3"
               >
-                <svg
-                  className="h-5 w-5 text-text-secondary"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  />
-                </svg>
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-primary to-accent text-xs font-bold text-white">
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt="Аватар пользователя"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    (username || email || "U")
+                      .charAt(0)
+                      .toUpperCase()
+                  )}
+                </div>
 
                 <span className="hidden max-w-[160px] truncate sm:inline">
                   {username || email}
@@ -178,7 +318,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="hidden sm:flex h-10 items-center rounded-xl border border-border bg-card px-3 text-sm text-text-secondary hover:border-primary/50 hover:text-foreground transition"
+                className="hidden h-10 items-center rounded-xl border border-border bg-card px-3 text-sm text-text-secondary transition hover:border-primary/50 hover:text-foreground sm:flex"
               >
                 Выйти
               </button>
@@ -186,7 +326,7 @@ export default function Header() {
           ) : (
             <Link
               href="/auth"
-              className="flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground hover:border-primary/50 transition"
+              className="flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground transition hover:border-primary/50"
             >
               <svg
                 className="h-5 w-5 text-text-secondary"
@@ -198,7 +338,7 @@ export default function Header() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7-7h14a7 7 0 00-7 7z"
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                 />
               </svg>
 

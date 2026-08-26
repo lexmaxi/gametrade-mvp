@@ -14,6 +14,7 @@ export type Product = {
   price: number;
   oldPrice?: number;
   image: string;
+  sellerId: string;
   seller: {
     name: string;
     rating: number;
@@ -53,11 +54,13 @@ export const products: Product[] = [
     price: 2490,
     oldPrice: 3200,
     image: "/products/cs2-acc.jpg",
-    seller: { name: "PrimeStore", rating: 4.98, sales: 1842 },
+    sellerId: "4ef36764-0494-4a3a-8a03-19047225bd92",
+    seller: { name: "Jary", rating: 4.98, sales: 1842 },
     sales: 327,
     delivery: "auto",
     tags: ["Prime", "Full Access", "Автовыдача"],
   },
+
   {
     id: "p2",
     title: "Буст до Global Elite | 2-5 дней | Гарантия",
@@ -65,11 +68,13 @@ export const products: Product[] = [
     category: "boost",
     price: 1890,
     image: "/products/cs2-boost.jpg",
+    sellerId: "",
     seller: { name: "BoostKing", rating: 4.95, sales: 956 },
     sales: 214,
     delivery: "manual",
     tags: ["Буст", "Гарантия"],
   },
+
   {
     id: "p3",
     title: "Genshin 60+ AR | C6 персонажи | Гарант",
@@ -78,11 +83,13 @@ export const products: Product[] = [
     price: 4590,
     oldPrice: 5200,
     image: "/products/genshin-acc.jpg",
+    sellerId: "",
     seller: { name: "GenshinPro", rating: 4.99, sales: 2103 },
     sales: 89,
     delivery: "manual",
     tags: ["AR60+", "C6", "Гарант"],
   },
+
   {
     id: "p4",
     title: "Valorant Immortal 3 | Скины + Боевой пропуск",
@@ -90,11 +97,13 @@ export const products: Product[] = [
     category: "accounts",
     price: 3750,
     image: "/products/valorant-acc.jpg",
+    sellerId: "",
     seller: { name: "ValStore", rating: 4.97, sales: 1340 },
     sales: 156,
     delivery: "auto",
     tags: ["Immortal", "Скины"],
   },
+
   {
     id: "p5",
     title: "Dota 2 Immortal + 5000 MMR | Full Access",
@@ -102,11 +111,13 @@ export const products: Product[] = [
     category: "accounts",
     price: 2890,
     image: "/products/dota-acc.jpg",
+    sellerId: "",
     seller: { name: "DotaMarket", rating: 4.96, sales: 876 },
     sales: 98,
     delivery: "manual",
     tags: ["Immortal", "5000 MMR"],
   },
+
   {
     id: "p6",
     title: "Прокачка WoW The War Within | 1-80 lvl",
@@ -114,11 +125,13 @@ export const products: Product[] = [
     category: "boost",
     price: 3200,
     image: "/products/wow-boost.jpg",
+    sellerId: "",
     seller: { name: "WoWBoost", rating: 4.94, sales: 654 },
     sales: 67,
     delivery: "manual",
     tags: ["Прокачка", "1-80"],
   },
+
   {
     id: "p7",
     title: "Roblox 50 000 Robux | Автовыдача 5 мин",
@@ -127,11 +140,13 @@ export const products: Product[] = [
     price: 1890,
     oldPrice: 2100,
     image: "/products/robux.jpg",
+    sellerId: "",
     seller: { name: "RobuxFast", rating: 4.99, sales: 4521 },
     sales: 1203,
     delivery: "auto",
     tags: ["Robux", "Автовыдача"],
   },
+
   {
     id: "p8",
     title: "MLBB 100+ звёзд | Mythic | Гарантия",
@@ -139,6 +154,7 @@ export const products: Product[] = [
     category: "accounts",
     price: 1450,
     image: "/products/mlbb-acc.jpg",
+    sellerId: "",
     seller: { name: "MLBBShop", rating: 4.93, sales: 1120 },
     sales: 245,
     delivery: "manual",
