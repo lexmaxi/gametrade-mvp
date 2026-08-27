@@ -4,7 +4,7 @@ import ProductCard from "@/components/ProductCard";
 import { products, categories } from "@/lib/data";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import {
   getGameSearchSuggestions,
   normalizeSearchText,
@@ -13,7 +13,7 @@ import {
 
 type SortOption = "popular" | "cheap" | "expensive" | "rating";
 
-export default function CatalogPage() {
+function CatalogContent() {
   const searchParams = useSearchParams();
 
   const searchFromUrl =
@@ -164,7 +164,6 @@ export default function CatalogPage() {
         </p>
       </div>
 
-      {/* Поиск внутри каталога */}
       <div className="mb-5">
         <div className="relative">
           <input
@@ -177,7 +176,6 @@ export default function CatalogPage() {
             className="h-11 w-full rounded-xl border border-border bg-card py-2 pl-12 pr-10 text-sm text-foreground placeholder:text-text-secondary transition focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
           />
 
-          {/* Исправленная иконка поиска */}
           <svg
             className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 shrink-0 -translate-y-1/2 overflow-visible text-text-secondary"
             fill="none"
@@ -251,7 +249,6 @@ export default function CatalogPage() {
         )}
       </div>
 
-      {/* Категории */}
       <div className="mb-6 flex flex-wrap gap-2">
         <Link
           href={getCatalogHref()}
@@ -283,7 +280,6 @@ export default function CatalogPage() {
         })}
       </div>
 
-      {/* Результаты и сортировка */}
       <div className="mb-4 flex flex-col gap-3 text-sm text-text-secondary sm:flex-row sm:items-center sm:justify-between">
         <div>
           <span>
@@ -341,7 +337,6 @@ export default function CatalogPage() {
         </select>
       </div>
 
-      {/* Товары */}
       {filteredProducts.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredProducts.map((product) => (
@@ -375,5 +370,20 @@ export default function CatalogPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CatalogPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+          <h1 className="mb-2 text-2xl font-bold">Каталог</h1>
+          <p className="text-sm text-text-secondary">Загрузка...</p>
+        </div>
+      }
+    >
+      <CatalogContent />
+    </Suspense>
   );
 }
